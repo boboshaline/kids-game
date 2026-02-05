@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ObjectGame } from "./object-game";
 
-export function Game() {
+export  function GameComponent() {
   const { levelId } = useParams();
   const navigate = useNavigate();
   const[gameStarted,setGameStarted]=useState(false);
@@ -60,14 +60,41 @@ export function Game() {
           </div>
 
           {/* Inside Game.tsx */}
-<Card className="min-h-[500px] bg-card border-border flex flex-col items-center justify-center p-6 sm:p-12 text-center relative overflow-hidden">
+
+<Card className="min-h-[600px] w-full bg-card border-border flex flex-col items-center justify-center p-6 sm:p-12 text-center relative overflow-hidden shadow-2xl ring-1 ring-white/5">
+  {/* Background glow for depth */}
+  <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+
   {gameStarted ? (
-    <ObjectGame levelId={levelId || "beginner"} />
-  ) : (
-    <div className="z-10">
-      <h2 className="text-4xl font-bold mb-4">Ready?</h2>
-      <Button onClick={() => setGameStarted(true)}>START CHALLENGE</Button>
+    <div className="w-full flex items-center justify-center z-10">
+      <ObjectGame levelId={levelId || "beginner"} />
     </div>
+  ) : (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="z-10 flex flex-col items-center gap-6"
+    >
+      <div className="relative">
+        <div className="absolute inset-0 bg-primary blur-3xl opacity-20 rounded-full" />
+        <Trophy className="w-24 h-24 text-primary relative z-10 animate-bounce" />
+      </div>
+      
+      <div>
+        <h2 className="text-4xl sm:text-5xl font-black mb-3">Ready to Play?</h2>
+        <p className="text-muted-foreground text-lg max-w-sm mx-auto">
+          You'll see different objects. Find the right one as fast as you can!
+        </p>
+      </div>
+
+      <Button 
+        size="lg"
+        onClick={() => setGameStarted(true)}
+        className="rounded-full px-10 py-8 text-2xl font-black shadow-xl hover:scale-110 transition-transform bg-primary hover:bg-primary/90"
+      >
+        START CHALLENGE
+      </Button>
+    </motion.div>
   )}
 </Card>
         </motion.div>

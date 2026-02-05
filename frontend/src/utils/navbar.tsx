@@ -1,13 +1,11 @@
 import { Button } from "@/components/ui/button";
 import {
-    Menubar,
-    MenubarContent,
-    MenubarItem,
-    MenubarMenu,
-    MenubarTrigger,
+  Menubar,
+  MenubarContent,
+  MenubarItem,
+  MenubarMenu,
+  MenubarTrigger,
 } from "@/components/ui/menubar";
-import pic from "/game1.png";
-// Import the icon (Gamepad2 is a great fit for "Play2Learn")
 
 export function Navbar() {
   return (
@@ -17,7 +15,7 @@ export function Navbar() {
         
         {/* Logo / Title with Icon */}
         <div className="flex items-center gap-2 text-2xl sm:text-3xl font-extrabold text-purple-700">
-            <img src={pic} className="w-9 h-9"/>
+            <img src="/game1.png" className="w-9 h-9"/>
           <span>Play2Learn</span>
         </div>
 

@@ -1,10 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Play } from "lucide-react";
 import { useState } from "react";
-import { Contact } from "./contact";
-import { Features } from "./features";
 import { Level } from "./Level";
 import { Navbar } from "./navbar";
+import { Contact } from "./contact";
+import { Features } from "./features";
 
 export default function HomePage() {
     const[isLevelOpen,setIsLevelOpen]=useState(false);

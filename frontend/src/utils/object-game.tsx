@@ -110,38 +110,55 @@ export function ObjectGame({ levelId }: ObjectGameProps) {
 
   if (!target) return null;
 
-  return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-6">
-       {/* HUD */}
-       <div className="w-full grid grid-cols-2 gap-4">
-        <Card className="p-4 bg-card/50">
-          <Progress value={(round / 10) * 100} className="h-2 mb-2" />
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Round {round}/10</p>
-        </Card>
-        <Card className="p-4 bg-card/50 flex flex-col items-center justify-center">
-          <p className="text-2xl font-black text-secondary">{streak} 🔥</p>
-          <p className="text-[10px] font-bold uppercase text-muted-foreground">Current Streak</p>
-        </Card>
-      </div>
+return (
+  <div className="w-full flex flex-col items-center justify-center gap-8 animate-in fade-in zoom-in duration-500">
+    
+    {/* HUD - We wrap this in a container to prevent it from pushing the center text too much */}
+    <div className="w-full max-w-2xl grid grid-cols-2 gap-4">
+      <Card className="p-4 bg-card/50 border-none shadow-none bg-secondary/5">
+        <Progress value={(round / 10) * 100} className="h-2 mb-2" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-left">Round {round}/10</p>
+      </Card>
+      <Card className="p-4 bg-card/50 border-none shadow-none bg-secondary/5 flex flex-col items-center justify-center">
+        <p className="text-xl font-black text-secondary">{streak} 🔥</p>
+        <p className="text-[10px] font-bold uppercase text-muted-foreground">Streak</p>
+      </Card>
+    </div>
 
-      {/* Target Question */}
-      <div className="text-center py-6">
-        <h2 className="text-4xl sm:text-6xl font-black mb-4">Find the <span className="text-primary">{target.name}</span></h2>
-        <Button variant="outline" size="sm" onClick={() => playAudio(target.name)} className="rounded-full bg-background/50">
-          <Volume2 className="w-4 h-4 mr-2" /> Pronounce
-        </Button>
-      </div>
+    {/* Target Question - This is the focal point */}
+    <div className="flex flex-col items-center gap-2">
+      <h2 className="text-4xl sm:text-6xl font-black tracking-tight">
+        Find the <span className="text-primary">{target.name}</span>
+      </h2>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={() => playAudio(target.name)} 
+        className="rounded-full hover:bg-primary/10 text-primary font-bold"
+      >
+        <Volume2 className="w-4 h-4 mr-2" /> Listen Again
+      </Button>
+    </div>
 
-      {/* Options Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 w-full max-w-2xl">
+    {/* Options Grid - Perfectly Centered */}
+    <div className="flex justify-center w-full">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 w-full max-w-xl">
         <AnimatePresence mode="popLayout">
           {options.map((item) => (
-            <motion.div key={item.id} layout initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.5 }}>
+            <motion.div 
+              key={item.id} 
+              layout 
+              initial={{ scale: 0.8, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.5, opacity: 0 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
               <Card
                 onClick={() => isCorrect === null && handleChoice(item)}
-                className={`aspect-square flex items-center justify-center text-8xl cursor-pointer border-4 transition-all
-                  ${isCorrect === true && item.id === target.id ? 'border-green-500 bg-green-500/10' : 'border-transparent bg-card'}
-                  hover:shadow-2xl hover:shadow-primary/20
+                className={`aspect-square flex items-center justify-center text-6xl sm:text-7xl cursor-pointer border-4 transition-all duration-300 rounded-[2rem] shadow-xl
+                  ${isCorrect === true && item.id === target.id ? 'border-green-500 bg-green-500/10 scale-105' : 'border-transparent bg-card'}
+                  ${isCorrect === false && item.id !== target.id ? 'opacity-50' : ''}
                 `}
               >
                 {item.image}
@@ -151,5 +168,6 @@ export function ObjectGame({ levelId }: ObjectGameProps) {
         </AnimatePresence>
       </div>
     </div>
-  );
+  </div>
+);
 }
