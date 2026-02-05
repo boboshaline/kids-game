@@ -1,9 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
-.root {
+:root {
   --background: #0D0A1D;               /* main page bg */
   --foreground: #E0D9FF;               /* main text */
   --card: #1A0F36;                     /* card bg */
@@ -53,6 +54,7 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  font-family: 'Quicksand', sans-serif;
 }
 
 h1 {
@@ -90,6 +92,15 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+@keyframes tilt {
+  0%, 50%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(1deg); }
+  75% { transform: rotate(-1deg); }
+}
+
+.animate-tilt {
+  animation: tilt 4s infinite linear;
 }
 
 @theme inline {
