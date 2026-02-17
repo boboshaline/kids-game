@@ -5,6 +5,29 @@ interface TurnData{
     levelId:string;
     round:number;}
 
+    interface AnalysisRequest{
+        sessionId:string;
+    }
+
+interface RoundHistory {
+  round: string;
+  time: number;
+  isCorrect: boolean;
+}
+
+interface AnalysisResponse {
+  totalRounds: number;
+  correctRounds: number;
+  wrongAnswers: number;
+  accuracy: string;
+  avgTime: string;
+  maxStreak: number;
+  recommendation: string;
+  history: RoundHistory[];
+}
+
+    
+
 export const api=createApi({
     reducerPath:"api",
     baseQuery:fetchBaseQuery({
@@ -26,7 +49,15 @@ export const api=createApi({
             }),
             invalidatesTags:['Performance'],
         }),
+
+        //NEW ANALYSIS ENDPOINT
+
+      getAnalysis: builder.query<AnalysisResponse, AnalysisRequest>({
+  query: ({ sessionId }) => `/game/analysis/${sessionId}`, 
+  providesTags: ['Performance'],
+}),
     }), 
+
 });
 
-export const {useGetGameRoundQuery,useProcessTurnMutation}=api;
+export const {useGetGameRoundQuery,useProcessTurnMutation,useGetAnalysisQuery}=api;

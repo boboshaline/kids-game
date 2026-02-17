@@ -3,6 +3,7 @@
 import mongoose from "mongoose";
 
 const PerformanceSchema=new mongoose.Schema({
+    sessionId:{type:String,required:true},
     levelId:{type:String,required:true},
     timeTaken:{type:Number,required:true},
     isCorrect:{type:Boolean,required:true},

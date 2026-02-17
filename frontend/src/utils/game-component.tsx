@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Heart, Timer, Trophy } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
 import { ObjectGame } from "./object-game";
 import { useSpeech } from "./useSpeech";
 
@@ -18,22 +19,37 @@ export function GameComponent() {
   const [lives, setLives] = useState(3);
   const [secondsLeft, setSecondsLeft] = useState(300); // 5 Minutes total
   const [isGameOverFromParent, setIsGameOverFromParent] = useState(false);
+ const [sessionId] = useState(() => uuidv4());
+
+  console.log("Session ID:", sessionId); 
+   
+//to give each player a unique id
+  useEffect(() => {
+  let userId = localStorage.getItem("game_user_id");
+  if (!userId) {
+    userId = `player_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem("game_user_id", userId);
+  }
+}, []);
 
   // --- TIMER LOGIC ---
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
+useEffect(() => {
+  let interval: NodeJS.Timeout;
 
-    if (gameStarted && !isGameOverFromParent && secondsLeft > 0) {
-      interval = setInterval(() => {
-        setSecondsLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (secondsLeft === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsGameOverFromParent(true);
-    }
+  if (gameStarted && !isGameOverFromParent) {
+    interval = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          setIsGameOverFromParent(true); // ✅ safe, only called when timer hits 0
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
 
-    return () => clearInterval(interval);
-  }, [gameStarted, secondsLeft, isGameOverFromParent]);
+  return () => clearInterval(interval);
+}, [gameStarted, isGameOverFromParent]);
 
   // Format seconds into MM:SS
   const formatTime = (totalSeconds: number) => {
@@ -112,13 +128,16 @@ return (
 
           {gameStarted ? (
             <div className="w-full z-10">
-              <ObjectGame 
-                speak={speak} 
-                levelId={levelId || "beginner"} 
-                onScoreUpdate={handleScoreChange}
-                onLivesUpdate={handleLivesChange}
-                isTimeUp={secondsLeft === 0}
-              />
+
+        <ObjectGame
+          speak={speak}
+          levelId={levelId || "beginner"}
+          onScoreUpdate={handleScoreChange}
+          onLivesUpdate={handleLivesChange}
+          isTimeUp={secondsLeft === 0}
+          sessionId={sessionId} 
+        />
+      
             </div>
           ) : (
             <motion.div

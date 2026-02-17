@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
-import Performance from '../models/Performance'; // Your Mongoose Model
+import Performance from '../models/Performance';
 
 export const processTurn = async (req: Request, res: Response) => {
   try {
-    const { levelId, choiceId, targetId, timeTaken, round, streak } = req.body;
-
+    const { levelId, choiceId, targetId, timeTaken, round, streak,sessionId } = req.body;
+    console.log("session id",sessionId);
+if (!sessionId) {
+  return res.status(400).json({ success: false, message: "Session ID required" });
+}
     // Security Check: Prevent saving if rounds exceed the limit
     if (round > 10) {
       return res.status(400).json({ success: false, message: "Game already completed" });
@@ -19,6 +22,7 @@ export const processTurn = async (req: Request, res: Response) => {
 
     // Save to MongoDB
     const record = await Performance.create({
+      sessionId,
       levelId,
       round,
       isCorrect,

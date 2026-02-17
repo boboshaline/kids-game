@@ -10,57 +10,63 @@ interface GameObject {
 interface Props {
   item: GameObject;
   disabled: boolean;
-  onSelect: () => void; 
+  onSelect: () => void;
+  isCorrectHighlight?: boolean;
 }
 
-
-interface GameObject {
-  id: number;
-  name: string;
-  image: string;
-  difficulty: number;
-}
-
-interface Props {
-  item: GameObject;
-  disabled: boolean;
-  onSelect: () => void; 
-}
-
-export function ClickableObject({ item, disabled, onSelect }: Props) {
+export function ClickableObject({ item, disabled, onSelect, isCorrectHighlight }: Props) {
   return (
-    <div 
-      className="w-full h-full flex items-center justify-center p-4"
+    <div
+      className={`w-full h-full flex items-center justify-center p-4 ${isCorrectHighlight ? "z-50" : "z-0"}`}
       onClick={!disabled ? onSelect : undefined}
     >
       <motion.div
-        whileHover={!disabled ? { scale: 1.1 } : {}}
-        whileTap={!disabled ? { scale: 0.95 } : {}}
-        className="relative flex items-center justify-center cursor-pointer group"
+        whileHover={!disabled ? { y: -8, scale: 1.05 } : {}}
+        whileTap={!disabled ? { scale: 0.92 } : {}}
+
+        animate={isCorrectHighlight ? {
+          scale: 1.15,
+          y: -12,
+        } : { scale: 1, y: 0 }}
+
+        transition={{
+          type: "spring",
+          stiffness: 500,
+          damping: 20
+        }}
+        className={`
+          relative flex items-center justify-center cursor-pointer group
+          ${disabled ? "cursor-not-allowed opacity-40" : "opacity-100"}
+          ${isCorrectHighlight ? "z-50" : "z-10"}
+        `}
       >
-        {/* The Chic Circle Border */}
+        {isCorrectHighlight && (
+          <motion.div
+            layoutId="highlight-glow"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1.4 }}
+            className="absolute inset-0 bg-primary/20 blur-2xl rounded-full -z-10"
+          />
+        )}
+
         <div className={`
           absolute inset-0 rounded-full border-2 
-          transition-all duration-300 ease-out
-          ${disabled 
-            ? "border-muted/20" 
-            : "border-primary/20 group-hover:border-primary group-hover:scale-110 shadow-sm group-hover:shadow-primary/20"
+          transition-all duration-500 ease-out
+          ${isCorrectHighlight 
+            ? "border-primary shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)] scale-110" 
+            : "border-primary/10 group-hover:border-primary/40 shadow-none"
           }
         `} />
 
-        {/* Optional: Subtle background fill on hover */}
-        {!disabled && (
-          <div className="absolute inset-0 rounded-full bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        )}
-
-        {/* The Item (Emoji) */}
-        <span 
+        <span
           role="img"
           aria-label={item.name}
-          className="text-6xl sm:text-7xl lg:text-8xl block leading-none select-none z-10 p-6"
+          className={`
+            text-6xl sm:text-7xl lg:text-8xl block leading-none select-none z-20 p-6
+            transition-transform duration-300
+            ${isCorrectHighlight ? "drop-shadow-xl" : "drop-shadow-sm"}
+          `}
           style={{
-            background: 'none',
-            backgroundColor: 'transparent',
             WebkitTapHighlightColor: 'transparent',
           }}
         >

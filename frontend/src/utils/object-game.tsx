@@ -1,11 +1,11 @@
 import { useGetGameRoundQuery, useProcessTurnMutation } from "@/api/game-slice";
 import sound from '@/assets/sound.mp4';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { AnimatePresence, motion } from "framer-motion";
-import { RefreshCcw, Trophy, Volume2 } from "lucide-react";
+import { Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ClickableObject } from "./DraggableObject";
+import { GameOverScreen } from "./game-over-screen";
 
 interface Props {
   levelId: string;
@@ -13,6 +13,9 @@ interface Props {
   onScoreUpdate: (score: number) => void;
 onLivesUpdate: (update: any) => void;
   isTimeUp?: boolean;
+    isCorrectHighlight?: boolean;
+    sessionId: string;
+
 }
 
 interface GameObject {
@@ -31,11 +34,15 @@ interface ProcessTurnResponse {
   recordId?: string;
 }
 
-export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTimeUp }: Props) {
+export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTimeUp,sessionId }: Props) {
   const [round, setRound] = useState(1);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [highlightCorrectId, setHighlightCorrectId] = useState<number | null>(null);
+// const[showAnalysis,setShowAnalysis]=useState(false);
+// const[savedSessionId,setSavedSessionId]=useState<string>("");
+
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
   const winAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -72,6 +79,7 @@ export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTim
     }
   }, [target, isFetching, speak, feedback,isGameOver]);
 
+ 
   // 4. Choice Logic
   const handleChoice = async (choice: GameObject) => {
     if (isProcessing || isFetching || feedback || !target) return;
@@ -82,6 +90,7 @@ export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTim
 
     try {
       const result: ProcessTurnResponse = await processTurn({
+        sessionId,
         levelId,
         choiceId: choice.id,
         targetId: target.id,
@@ -110,58 +119,45 @@ export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTim
         } else {
           setRound(r => r + 1);
         }
-      } else {
-        setFeedback({ type: 'error', msg: "TRY AGAIN" });
-        setStreak(0); // Reset streak on mistake
-        
-        // Reduce lives in parent
-        onLivesUpdate(prev => prev - 1);
+     } else {
+  setFeedback({ type: 'error', msg: `Oops! That is not correct.` });
 
-        await speak(`Oops! That is ${article} ${choice.name}.`); 
-        setFeedback(null);
-      }
+  setStreak(0);
+  onLivesUpdate(prev => prev - 1);
+
+  // const correctArticle = /^[aeiou]/i.test(target.name) ? "an" : "a";
+
+  // Highlight correct emoji
+  setHighlightCorrectId(target.id);
+
+  await speak(
+    `Oops! That is ${article} ${choice.name}. The correct answer is this.`
+  );
+
+  // Give child time to SEE the correct emoji
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
+  setHighlightCorrectId(null); // remove highlight
+  setFeedback(null);
+
+  if (round >= 10) {
+    setIsGameOver(true);
+  } else {
+    setRound(r => r + 1);
+  }
+}
+
+
     } catch (error) {
       console.error("Game Error:", error);
     }
   };
 
-// ... (keep imports and interfaces the same)
 
   if (isGameOver) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh] p-4 z-10 w-full">
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          <Card className="max-w-sm border-none shadow-2xl bg-card/90 backdrop-blur-xl rounded-[2rem]">
-            <CardContent className="p-8 flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-yellow-100/50 rounded-full flex items-center justify-center mb-4">
-                <Trophy className="w-8 h-8 text-yellow-500" />
-              </div>
-              <h2 className="text-3xl font-black text-foreground mb-1 tracking-tight">Level Clear!</h2>
-              <p className="text-muted-foreground text-sm mb-6 font-medium italic">Master of the {levelId} realm!</p>
-              
-              <div className="grid grid-cols-2 gap-3 w-full mb-6">
-                <div className="p-3 bg-primary/5 rounded-xl border border-primary/10">
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Final Score</p>
-                  <p className="text-2xl font-black text-foreground">{score}</p>
-                </div>
-                <div className="p-3 bg-primary/5 rounded-xl border border-primary/10">
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Rounds</p>
-                  <p className="text-2xl font-black text-foreground">{round}/10</p>
-                </div>
-              </div>
-
-              <Button 
-                size="lg" 
-                onClick={() => window.location.reload()}
-                className="w-full h-12 rounded-xl text-lg font-bold gap-2 shadow-lg transition-transform active:scale-95"
-              >
-                <RefreshCcw className="w-5 h-5" /> Play Again
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    );
+    return(
+      <GameOverScreen levelId={levelId} score={score} round={round} sessionId={sessionId} />
+    )
   }
 
   return (
@@ -261,11 +257,13 @@ export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTim
                   whileHover={{ y: -5 }}
                   className="flex items-center justify-center"
                 >
-                  <ClickableObject
-                    disabled={isProcessing || isFetching || !!feedback}
-                    item={item}
-                    onSelect={() => handleChoice(item)}
-                  />
+                 <ClickableObject
+  disabled={isProcessing || isFetching || !!feedback}
+  item={item}
+  isCorrectHighlight={highlightCorrectId === item.id}
+  onSelect={() => handleChoice(item)}
+/>
+
                 </motion.div>
               ))}
             </motion.div>
