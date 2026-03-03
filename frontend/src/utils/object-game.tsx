@@ -39,7 +39,7 @@ export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTim
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [highlightCorrectId, setHighlightCorrectId] = useState<number | null>(null);
+  const [highlightCorrectId, setHighlightCorrectId] = useState<number|null>(null);
 // const[showAnalysis,setShowAnalysis]=useState(false);
 // const[savedSessionId,setSavedSessionId]=useState<string>("");
 
@@ -79,80 +79,72 @@ export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTim
     }
   }, [target, isFetching, speak, feedback,isGameOver]);
 
- 
-  // 4. Choice Logic
-  const handleChoice = async (choice: GameObject) => {
-    if (isProcessing || isFetching || feedback || !target) return;
+const handleChoice = async (choice: GameObject) => {
+  if (isProcessing || isFetching || feedback || !target) return;
 
-    const currentTime = new Date().getTime();
-    const secondsElapsed = (currentTime - startTimeRef.current) / 1000;
-    const finalTimeTaken = Math.min(Math.max(secondsElapsed, 0.1), 60);
+  const currentTime = new Date().getTime();
+  const secondsElapsed = (currentTime - startTimeRef.current) / 1000;
+  const finalTimeTaken = Math.min(Math.max(secondsElapsed, 0.1), 60);
 
-    try {
-      const result: ProcessTurnResponse = await processTurn({
-        sessionId,
-        levelId,
-        choiceId: choice.id,
-        targetId: target.id,
-        timeTaken: finalTimeTaken,
-        round,
-        streak
-      }).unwrap();
+  try {
+    const result: ProcessTurnResponse = await processTurn({
+      sessionId,
+      levelId,
+      choiceId: choice.id,
+      targetId: target.id,
+      timeTaken: finalTimeTaken,
+      round,
+      streak
+    }).unwrap();
 
-      const article = /^[aeiou]/i.test(choice.name) ? "an" : "a";
+    console.log(result,"results from backend");
 
-      if (result.isCorrect) {
-        setFeedback({ type: 'success', msg: "PERFECT!" });
-        
-        // Update local score and sync with parent
-        const newScore = score + 10;
-        setScore(newScore);
-        onScoreUpdate(newScore);
-        
-        setStreak(result.newStreak);
-        
-        await speak(`Yay! That is ${article} ${choice.name}!`);
-        
-        setFeedback(null);
-        if (round >= 10) {
-          setIsGameOver(true);
-        } else {
-          setRound(r => r + 1);
-        }
-     } else {
+    const article = /^[aeiou]/i.test(choice.name) ? "an" : "a";
+
+ // Correct answer flow
+if (result.isCorrect) {
+  setFeedback({ type: 'success', msg: "PERFECT!" });
+  setHighlightCorrectId(choice.id); // ✅ highlight by id
+
+  setScore(prev => prev + 10);
+  onScoreUpdate(score + 10);
+  setStreak(result.newStreak);
+
+  await speak(`Yay! That is ${article} ${choice.name}!`);
+  await new Promise(resolve => setTimeout(resolve, 1000));
+} 
+// Wrong answer flow
+else {
   setFeedback({ type: 'error', msg: `Oops! That is not correct.` });
-
   setStreak(0);
   onLivesUpdate(prev => prev - 1);
 
-  // const correctArticle = /^[aeiou]/i.test(target.name) ? "an" : "a";
+  setHighlightCorrectId(target.id); // ✅ highlight correct target
 
-  // Highlight correct emoji
-  setHighlightCorrectId(target.id);
-
-  await speak(
-    `Oops! That is ${article} ${choice.name}. The correct answer is this.`
-  );
-
-  // Give child time to SEE the correct emoji
-  await new Promise(resolve => setTimeout(resolve, 1500));
-
-  setHighlightCorrectId(null); // remove highlight
-  setFeedback(null);
-
-  if (round >= 10) {
-    setIsGameOver(true);
-  } else {
-    setRound(r => r + 1);
-  }
+  await speak(`Oops! That is ${article} ${choice.name}. The correct answer is this.`);
+  await new Promise(resolve => setTimeout(resolve, 2000));
 }
 
+// Clear highlight after delay
+setHighlightCorrectId(null);
+setFeedback(null);
 
-    } catch (error) {
-      console.error("Game Error:", error);
+
+  
+
+    if (round >= 10) {
+      setIsGameOver(true);
+    } else {
+      // This triggers the fetch for the next round
+      setRound(prev => prev + 1);
     }
-  };
 
+  } catch (error) {
+    console.error("Game Error:", error);
+    setFeedback(null);
+    setHighlightCorrectId(null);
+  }
+};
 
   if (isGameOver) {
     return(
@@ -246,10 +238,10 @@ export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTim
               }}
               className="flex flex-wrap items-center justify-center gap-6 sm:gap-10"
             >
-              {options.map((item: GameObject) => (
+              {options.map((item: GameObject, index: number) => (
                 <motion.div
-                  key={`${item.id}-${round}`}
-                  variants={{
+key={`${item.name}-${index}`}          
+        variants={{
                     hidden: { opacity: 0, scale: 0.8 },
                     visible: { opacity: 1, scale: 1 },
                     exit: { opacity: 0, scale: 0.8 }

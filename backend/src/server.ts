@@ -3,6 +3,7 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import path from "path";
 import connectDB from "./config/db";
 import gameRoutes from "./routes/gameRoutes";
 
@@ -25,6 +26,9 @@ const corsOptions={
 //Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
+
+app.use("/images", express.static(path.join(__dirname, "../../ai-model/dataset/train")));
+
 
 //routes
 app.use('/api/game',gameRoutes);

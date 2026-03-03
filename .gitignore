@@ -22,3 +22,21 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+#hide venv files
+.venv/
+venv/
+ai-model/datasets/
+
+# Python virtual environments
+ai-model/venv/
+ai-model/.venv/
+venv/
+.venv/
+
+# ML Datasets (The heavy stuff)
+ai-model/datasets/
+ai-model/images/
+*.jpg
+*.png
+*.jpeg

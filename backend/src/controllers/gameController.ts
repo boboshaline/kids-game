@@ -4,6 +4,7 @@ import Performance from '../models/Performance';
 export const processTurn = async (req: Request, res: Response) => {
   try {
     const { levelId, choiceId, targetId, timeTaken, round, streak,sessionId } = req.body;
+    console.log(req.body,"answers");
     console.log("session id",sessionId);
 if (!sessionId) {
   return res.status(400).json({ success: false, message: "Session ID required" });
