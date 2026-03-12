@@ -1,75 +1,41 @@
 import os
-import json
-import random
-import sys
+import zipfile
+import shutil
 
-# --- Arguments ---
-level = sys.argv[1] if len(sys.argv) > 1 else "beginner"
-num_questions = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+RAW_DIR = "dataset/raw"  # folder with all zip files
+DATASET_DIR = "dataset"  # your main dataset folder
 
-# --- Dataset Path ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATASET_PATH = os.path.abspath(os.path.join(BASE_DIR, "../../ai-model/dataset/train"))
+for zip_name in os.listdir(RAW_DIR):
+    if not zip_name.endswith(".zip"):
+        continue
 
-all_classes = [
-    cls for cls in os.listdir(DATASET_PATH)
-    if os.path.isdir(os.path.join(DATASET_PATH, cls)) and len(os.listdir(os.path.join(DATASET_PATH, cls))) > 0
-]
+    zip_path = os.path.join(RAW_DIR, zip_name)
+    temp_extract = os.path.join(RAW_DIR, zip_name.replace(".zip", "_temp"))
 
-level_map = {
-    "beginner": ["cat", "dog", "apple", "banana"],
-    "medium": ["lion", "grapes"],
-    "advanced": [] 
-}
+    # Extract zip
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        zip_ref.extractall(temp_extract)
 
-available_classes = [cls for cls in level_map.get(level, []) if cls in all_classes]
-if not available_classes:
-    available_classes = all_classes
+    # Merge into train and validation
+    for split in ["train", "validation"]:
+        src_split = os.path.join(temp_extract, split)
+        dest_split = os.path.join(DATASET_DIR, split)
+        if not os.path.exists(src_split):
+            continue
 
-# --- Generate quizzes ---
-NUM_OPTIONS = 4
-quizzes = []
-option_id_counter = 1000 
+        for class_name in os.listdir(src_split):
+            src_class = os.path.join(src_split, class_name)
+            dest_class = os.path.join(dest_split, class_name)
 
-for q_idx in range(num_questions):
-    target_class = random.choice(available_classes)
-    target_images = os.listdir(os.path.join(DATASET_PATH, target_class))
-    target_image = random.choice(target_images)
+            if not os.path.isdir(src_class):
+                continue  # skip files
 
-    # Pick wrong options
-    other_classes = [c for c in all_classes if c != target_class]
-    wrong_options = random.sample(other_classes, min(NUM_OPTIONS - 1, len(other_classes)))
-    
-    options_list = wrong_options + [target_class]
-    random.shuffle(options_list)
+            os.makedirs(dest_class, exist_ok=True)
 
-    options_data = []
-    correct_option_id = None  # We'll store the ID of the correct one here
+            for file_name in os.listdir(src_class):
+                src_file = os.path.join(src_class, file_name)
+                dest_file = os.path.join(dest_class, file_name)
+                if not os.path.exists(dest_file):
+                    shutil.copy(src_file, dest_file)
 
-    for opt_name in options_list:
-        current_id = option_id_counter
-        opt_images = os.listdir(os.path.join(DATASET_PATH, opt_name))
-        
-        # Check if this is the correct answer
-        if opt_name == target_class:
-            correct_option_id = current_id
-
-        options_data.append({
-            "id": current_id,
-            "name": opt_name,
-            "image": f"http://localhost:5000/images/{opt_name}/{random.choice(opt_images)}"
-        })
-        option_id_counter += 1
-
-    quizzes.append({
-        "id": q_idx + 1,
-        "target": {
-            "id": correct_option_id, # Matches the ID in the options list
-            "name": target_class,
-            "image": f"http://localhost:5000/images/{target_class}/{target_image}"
-        },
-        "options": options_data,
-        "answer": target_class
-    })
-
-print(json.dumps(quizzes, indent=2))
+    print(f"Merged {zip_name} successfully!")

@@ -1,10 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Play } from "lucide-react";
 import { useState } from "react";
+import { Contact } from "./contact";
+import { FAQ } from "./FAQ";
+import { Features } from "./features";
 import { Level } from "./Level";
 import { Navbar } from "./navbar";
-import { Contact } from "./contact";
-import { Features } from "./features";
 
 export default function HomePage() {
     const[isLevelOpen,setIsLevelOpen]=useState(false);
@@ -26,8 +27,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background text-white w-full font-['Quicksand'] selection:bg-purple-500/30 overflow-x-hidden">
-      <Navbar />
-
+<Navbar onPlayClick={() => setIsLevelOpen(true)} />
       {/* Hero Section */}
       <main className="relative pt-20 pb-10 w-full flex flex-col items-center">
         
@@ -106,8 +106,12 @@ export default function HomePage() {
         {/* Features Component */}
         <Features />
 
+        {/* FAQ Component */}
+        <FAQ />
+        
         {/* Contact Component */}
         <Contact />
+
 
       </main>
 

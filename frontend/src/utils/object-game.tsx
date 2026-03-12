@@ -1,21 +1,17 @@
 import { useGetGameRoundQuery, useProcessTurnMutation } from "@/api/game-slice";
 import sound from '@/assets/sound.mp4';
-import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
-import { Volume2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ClickableObject } from "./DraggableObject";
 import { GameOverScreen } from "./game-over-screen";
+import { IdentificationMode } from "./identify";
 
 interface Props {
-  levelId: string;
+  levelId: "beginner" | "medium" | "advanced";
   speak: (text: string) => Promise<unknown>;
   onScoreUpdate: (score: number) => void;
-onLivesUpdate: (update: any) => void;
-  isTimeUp?: boolean;
-    isCorrectHighlight?: boolean;
-    sessionId: string;
-
+  onLivesUpdate: (update: (prev: number) => number) => void;
+  sessionId: string;
 }
 
 interface GameObject {
@@ -25,243 +21,218 @@ interface GameObject {
   difficulty: number;
 }
 
-interface ProcessTurnResponse {
-  success: boolean;
-  isCorrect: boolean;
-  newStreak: number;
-  message?: string;
-  aiDecision?: string;
-  recordId?: string;
-}
-
-export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, isTimeUp,sessionId }: Props) {
+export function ObjectGame({ levelId, speak, onScoreUpdate, onLivesUpdate, sessionId }: Props) {
   const [round, setRound] = useState(1);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [highlightCorrectId, setHighlightCorrectId] = useState<number|null>(null);
-// const[showAnalysis,setShowAnalysis]=useState(false);
-// const[savedSessionId,setSavedSessionId]=useState<string>("");
-
+  const [highlightCorrectId, setHighlightCorrectId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
   const winAudioRef = useRef<HTMLAudioElement | null>(null);
   const startTimeRef = useRef<number>(0);
+  const lastSpokenId = useRef<number | null>(null); // Track to prevent repeat/missed audio
 
-  const { data, isLoading, isFetching } = useGetGameRoundQuery({ levelId, round }, { skip: isGameOver });
+  const { data, isFetching } = useGetGameRoundQuery({ levelId, round }, { skip: isGameOver });
   const [processTurn, { isLoading: isProcessing }] = useProcessTurnMutation();
+
+  
 
   const target = data?.target as GameObject | undefined;
   const options = (data?.options || []) as GameObject[];
 
-  // 1. Handle External Game Over (Timer Run Out)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (isTimeUp) setIsGameOver(true);
-  }, [isTimeUp]);
-
-  // 2. Play win sound when game ends
+  // Game Over Sound
   useEffect(() => {
     if (isGameOver) {
-      if (!winAudioRef.current) {
-        winAudioRef.current = new Audio(sound);
-      }
-      winAudioRef.current.currentTime = 0;
-      winAudioRef.current.play().catch(() => {});
+      if (!winAudioRef.current) winAudioRef.current = new Audio(sound);
+      winAudioRef.current.play().catch(e => console.error("Audio error", e));
     }
   }, [isGameOver]);
 
-  // 3. New Target Logic
+  // Handle Voice Prompts for Beginner Level
   useEffect(() => {
-    if (target && !isFetching && !feedback && !isGameOver) {
-      startTimeRef.current = Date.now();
-      speak(`Can you find the... ${target.name}?`);
+    if (levelId === "beginner" && target && !feedback && !isGameOver) {
+      // Only speak if this is a new target we haven't announced yet
+      if (lastSpokenId.current !== target.id) {
+        speak(`Can you find the... ${target.name}?`);
+        lastSpokenId.current = target.id;
+      }
     }
-  }, [target, isFetching, speak, feedback,isGameOver]);
+  }, [target, feedback, isGameOver, levelId, speak]);
 
-const handleChoice = async (choice: GameObject) => {
-  if (isProcessing || isFetching || feedback || !target) return;
+  useEffect(() => {
+    if (!isFetching && data) {
+      startTimeRef.current = Date.now();
+    }
+  }, [isFetching, data]);
+  const handleChoice = useCallback(async (choice: GameObject) => {
+    if (isProcessing || isFetching || !!feedback || !target || isGameOver) return;
+    const finalTimeTaken = (Date.now() - startTimeRef.current) / 1000;
 
-  const currentTime = new Date().getTime();
-  const secondsElapsed = (currentTime - startTimeRef.current) / 1000;
-  const finalTimeTaken = Math.min(Math.max(secondsElapsed, 0.1), 60);
+    try {
+      const result = await processTurn({
+        sessionId, levelId, choiceId: choice.id, targetId: target.id, timeTaken: finalTimeTaken, round, streak
+      }).unwrap();
 
-  try {
-    const result: ProcessTurnResponse = await processTurn({
-      sessionId,
-      levelId,
-      choiceId: choice.id,
-      targetId: target.id,
-      timeTaken: finalTimeTaken,
-      round,
-      streak
-    }).unwrap();
+      const article = /^[aeiou]/i.test(choice.name) ? "an" : "a";
+      if (result.isCorrect) {
+        setFeedback({ type: 'success', msg: "PERFECT!" });
+        setHighlightCorrectId(choice.id);
+        const newScore = score + 10;
+        setScore(newScore);
+        onScoreUpdate(newScore);
+        setStreak(result.newStreak);
+        await speak(`Yay! That is ${article} ${choice.name}!`);
+      } else {
+        setFeedback({ type: 'error', msg: `Oops! Try again.` });
+        setStreak(0);
+        onLivesUpdate((prev: number) => prev - 1);
+        setHighlightCorrectId(target.id);
+        await speak(`Oops! That is ${article} ${choice.name}.`);
+      }
 
-    console.log(result,"results from backend");
+      setTimeout(() => {
+        setHighlightCorrectId(null);
+        setFeedback(null);
+        if (round >= 10) {
+          setIsGameOver(true);
+        } else {
+          setRound(prev => prev + 1);
+        }
+      }, 1500);
+    } catch (error) { 
+      console.error(error); 
+    }
+  }, [feedback, isFetching, isProcessing, isGameOver, levelId, onLivesUpdate, onScoreUpdate, processTurn, round, score, sessionId, speak, streak, target]);
 
-    const article = /^[aeiou]/i.test(choice.name) ? "an" : "a";
 
- // Correct answer flow
-if (result.isCorrect) {
-  setFeedback({ type: 'success', msg: "PERFECT!" });
-  setHighlightCorrectId(choice.id); // ✅ highlight by id
+  // BATCH COMPLETE HANDLER for Medium/Advanced
+  const handleBatchComplete = async (correctInBatch: number) => {
+    const finalTimeTaken = (Date.now() - startTimeRef.current) / 1000;
+    try {
+      const result = await processTurn({
+        sessionId,
+        levelId,
+        choiceId: 0, 
+        targetId: 0,
+        timeTaken: finalTimeTaken,
+        round,
+        streak,
+        pointsEarned: correctInBatch * 2.5 
+      }).unwrap();
 
-  setScore(prev => prev + 10);
-  onScoreUpdate(score + 10);
-  setStreak(result.newStreak);
+      setStreak(result.newStreak);
+      
+     setRound(prev => {
+  const nextRound = prev + 1;
 
-  await speak(`Yay! That is ${article} ${choice.name}!`);
-  await new Promise(resolve => setTimeout(resolve, 1000));
-} 
-// Wrong answer flow
-else {
-  setFeedback({ type: 'error', msg: `Oops! That is not correct.` });
-  setStreak(0);
-  onLivesUpdate(prev => prev - 1);
+  if (nextRound > 10) {
+    setIsGameOver(true);
+    return prev;
+  }
 
-  setHighlightCorrectId(target.id); // ✅ highlight correct target
+  return nextRound;
+});
+    } catch (error) {
+      console.error("Batch Process Error:", error);
+    }
+  };
 
-  await speak(`Oops! That is ${article} ${choice.name}. The correct answer is this.`);
-  await new Promise(resolve => setTimeout(resolve, 2000));
-}
+  if (isGameOver) {
+    return <GameOverScreen levelId={levelId} score={score} round={round} sessionId={sessionId} />;
+  }
 
-// Clear highlight after delay
-setHighlightCorrectId(null);
-setFeedback(null);
-
+  // RENDER Medium / Advanced
+  if (levelId === "medium" || levelId === "advanced") {
+    return (
+     <IdentificationMode
+  key={`identify-batch-${round}`}
+  data={data}
+  round={round}
+  speak={speak}
+  onScoreUpdate={(earned) => {
+    setScore(prev => {
+      const newTotal = prev + earned;
+      onScoreUpdate(newTotal);
+      return newTotal;
+    });
+  }}
+  onLivesUpdate={onLivesUpdate}
+  onRoundComplete={handleBatchComplete}
+  isLoading={isFetching}
+/>
+    );
+  }
+  
+  if (isGameOver) {
+    return <GameOverScreen levelId={levelId} score={score} round={round} sessionId={sessionId} />;
+  }
 
   
 
-    if (round >= 10) {
-      setIsGameOver(true);
-    } else {
-      // This triggers the fetch for the next round
-      setRound(prev => prev + 1);
-    }
-
-  } catch (error) {
-    console.error("Game Error:", error);
-    setFeedback(null);
-    setHighlightCorrectId(null);
-  }
-};
-
-  if (isGameOver) {
-    return(
-      <GameOverScreen levelId={levelId} score={score} round={round} sessionId={sessionId} />
-    )
-  }
-
   return (
-    <div className="relative max-w-4xl mx-auto w-full px-4 py-2 space-y-6">
-      
-      {/* Target Question Card - MINIMIZED */}
+    <div className="relative max-w-4xl mx-auto w-full px-4 py-2 space-y-8">
       <div className="relative max-w-lg mx-auto">
         <AnimatePresence mode="wait">
-          <motion.div
-            key={target?.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="bg-card border border-border/40 rounded-[1.5rem] p-6 shadow-lg text-center relative overflow-hidden"
+          <motion.div 
+            key={target?.id || 'loading'} 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="bg-card border border-border/40 rounded-[2rem] p-8 shadow-xl text-center relative overflow-hidden"
           >
             <div className="flex flex-col items-center relative z-10">
-              <h2 className="text-sm text-muted-foreground font-medium mb-0.5 uppercase tracking-wider">Find the</h2>
-              <div className="flex items-center justify-center gap-3">
-                <h3 className="text-4xl sm:text-5xl font-black text-foreground capitalize tracking-tight">
-                  {target?.name}
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => speak(target?.name || "")}
-                  className="h-10 w-10 rounded-full bg-primary/10 hover:bg-primary/20"
-                >
-                  <Volume2 className="h-5 w-5 text-primary" />
-                </Button>
-              </div>
+              <span className="text-xs font-bold text-primary/60 uppercase tracking-widest mb-2">Round {round} of 10</span>
+              <h3 className="text-3xl sm:text-5xl font-black text-foreground capitalize tracking-tight">
+                {isFetching && !target ? "Loading..." : `Find the ${target?.name}`}
+              </h3>
             </div>
-            
-            {/* Thinner Progress Bar */}
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/10">
+            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-muted/10">
               <motion.div 
-                className="h-full bg-primary/60"
-                initial={{ width: 0 }}
-                animate={{ width: `${(round / 10) * 100}%` }}
+                className="h-full bg-primary" 
+                animate={{ width: `${(round / 10) * 100}%` }} 
               />
             </div>
           </motion.div>
         </AnimatePresence>
 
-        {/* Feedback Overlay - Adjusted for smaller card */}
         <AnimatePresence>
           {feedback && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center rounded-[1.5rem] backdrop-blur-sm z-30 pointer-events-none"
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="absolute inset-0 flex items-center justify-center rounded-[2rem] backdrop-blur-md z-30 pointer-events-none"
             >
-              <motion.div
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-                className={`px-8 py-3 rounded-2xl font-black text-xl shadow-xl text-white
-                  ${feedback.type === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
-              >
+              <div className={`px-10 py-5 rounded-3xl font-black text-2xl shadow-2xl text-white ${feedback.type === "success" ? "bg-emerald-500" : "bg-rose-500"}`}>
                 {feedback.msg}
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Options Grid - Tightened spacing */}
-      <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 max-w-3xl mx-auto w-full px-2 min-h-[180px]">
-        <AnimatePresence mode="wait">
-          {isLoading || isFetching ? (
-            <motion.div
-              key="loader"
-              className="flex gap-6"
+      <div className="flex items-center justify-center min-h-[350px]">
+        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12">
+          {options.map((item, index) => (
+            <motion.div 
+              key={`${item.id}-${index}`}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              whileHover={{ scale: 1.05 }}
             >
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-muted/20 animate-pulse" />
-              ))}
+              <ClickableObject 
+                disabled={isProcessing || isFetching || !!feedback} 
+                item={item} 
+                isCorrectHighlight={highlightCorrectId === item.id} 
+                onSelect={() => handleChoice(item)} 
+              />
             </motion.div>
-          ) : (
-            <motion.div
-              key={`grid-${round}`}
-              initial="hidden" animate="visible" exit="exit"
-              variants={{
-                hidden: { opacity: 0 },
-                visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
-                exit: { opacity: 0, scale: 0.95 }
-              }}
-              className="flex flex-wrap items-center justify-center gap-6 sm:gap-10"
-            >
-              {options.map((item: GameObject, index: number) => (
-                <motion.div
-key={`${item.name}-${index}`}          
-        variants={{
-                    hidden: { opacity: 0, scale: 0.8 },
-                    visible: { opacity: 1, scale: 1 },
-                    exit: { opacity: 0, scale: 0.8 }
-                  }}
-                  whileHover={{ y: -5 }}
-                  className="flex items-center justify-center"
-                >
-                 <ClickableObject
-  disabled={isProcessing || isFetching || !!feedback}
-  item={item}
-  isCorrectHighlight={highlightCorrectId === item.id}
-  onSelect={() => handleChoice(item)}
-/>
-
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
+

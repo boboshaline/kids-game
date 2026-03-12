@@ -76,7 +76,7 @@ return (
     <nav className="max-w-5xl mx-auto flex items-center justify-between gap-2 mb-4">
       <Button
         variant="ghost"
-        onClick={() => navigate("/")}
+        onClick={() => navigate(-1)}
         className="gap-2 text-muted-foreground hover:text-primary p-2 transition-all"
       >
         <ArrowLeft className="w-4 h-4" />
