@@ -154,11 +154,11 @@ return (
                 <p className="text-muted-foreground text-base font-medium">Find the objects quickly!</p>
               </div>
 
-              <Button
-                size="lg"
-                onClick={() => setGameStarted(true)}
-                className="rounded-2xl px-10 py-6 text-xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all bg-primary text-primary-foreground border-b-4 border-black/10"
-              >
+             <Button
+  size="lg"
+  onClick={() => setGameStarted(true)}
+  className="rounded-2xl px-10 py-6 text-xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all bg-blue-600 hover:bg-blue-700 text-white border-b-4 border-blue-800"
+>
                 START GAME
               </Button>
             </motion.div>

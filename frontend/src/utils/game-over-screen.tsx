@@ -52,14 +52,14 @@ export function GameOverScreen({ levelId, score, round, sessionId }: GameOverPro
             </div>
 
             <div className="flex flex-col gap-2 w-full">
-               <Button 
-                size="lg" 
-                onClick={() => window.location.reload()}
-                className="w-full h-12 rounded-xl text-lg font-bold gap-2 shadow-lg transition-transform active:scale-95"
-              >
-                <RefreshCcw className="w-5 h-5" /> Play Again
-              </Button>
-              
+               <Button
+  size="lg"
+  onClick={() => window.location.reload()}
+  className="w-full h-12 rounded-xl text-lg font-bold gap-2 shadow-lg transition-transform active:scale-95 bg-blue-600 hover:bg-blue-700 text-white"
+>
+  <RefreshCcw className="w-5 h-5" />
+  Play Again
+</Button>
               <button 
                 onClick={() => setShowAnalysis(true)}
                 className="text-xs text-muted-foreground hover:text-primary transition-colors font-semibold uppercase tracking-widest mt-2"
